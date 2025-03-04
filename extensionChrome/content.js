@@ -51,8 +51,36 @@ function addCustomButton(sendButton) {
             emailBody.style.fontSize = "13px";
             emailBody.style.color = "black";
             console.log("🎨 Formato aplicado: Verdana, negro, tamaño 14px.");
+            setTimeout(() => {
+                resaltarPalabras();
+            }, 100);
         } else {
             console.log("❌ No se encontró el área de redacción.");
         }
     });
+}
+
+function resaltarPalabras() {
+    // Definir las frases a buscar
+    console.log("Cargando resaltar palabras");
+    const phrases = ["ven a malta", "spanish party"];
+
+    // Seleccionar el cuerpo del correo (ajustar el selector según la plataforma)
+    const emailBody = document.querySelector(".Am.Al.editable");
+
+    if (emailBody) {
+        console.log("Body del correo encontrado");
+        let content = emailBody.innerHTML; // Obtener el contenido en HTML
+
+        // Reemplazar cada frase con su versión en negrita
+        phrases.forEach(phrase => {
+            const regex = new RegExp(`(${phrase})`, "gi"); // 'gi' = insensible a mayúsculas
+            content = content.replace(regex, "<strong>$1</strong>");
+        });
+
+        emailBody.innerHTML = content; // Actualizar el contenido con las frases resaltadas
+    }
+    else{
+        console.log("Body del correo no encontrado");
+    }
 }
