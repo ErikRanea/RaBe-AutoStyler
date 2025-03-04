@@ -69,15 +69,27 @@ function applySavedSettings() {
 
             if (response) {
                 const { fontFamily, fontSize, fontColor } = response;
-
                 console.log("🎨 Aplicando formato con datos obtenidos:", response);
 
-                // Aplicamos los estilos dinámicamente usando los valores almacenados
                 let content = emailBody.innerHTML;
-                content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
-                emailBody.innerHTML = content;
 
-                console.log("✨ Formato aplicado directamente en el contenido del correo.");
+                // Expresión regular para detectar si ya existe un <span> envolviendo el contenido
+                const spanRegex = /^<span[^>]*>(.*?)<\/span>$/is;
+
+                if (spanRegex.test(content)) {
+                    console.log("🔄 Se detectó un <span> existente, actualizando estilos...");
+                    // Si ya existe un <span>, actualizamos sus atributos sin envolver otro <span>
+                    emailBody.firstElementChild.style.fontFamily = fontFamily;
+                    emailBody.firstElementChild.style.fontSize = fontSize;
+                    emailBody.firstElementChild.style.color = fontColor;
+                } else {
+                    console.log("🆕 No se detectó un <span>, agregando uno nuevo...");
+                    // Si no hay un <span>, lo agregamos
+                    content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
+                    emailBody.innerHTML = content;
+                }
+
+                console.log("✨ Formato aplicado correctamente.");
             } else {
                 console.log("⚠️ No se recibieron datos desde el background.");
             }
