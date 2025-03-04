@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Cargar configuraciones previas desde chrome.storage
     chrome.storage.sync.get(["fontFamily", "fontSize", "fontColor"], (data) => {
-        document.getElementById("fontFamily").value = data.fontFamily || "Verdana", "sans-serif";
+        document.getElementById("fontFamily").value = data.fontFamily || "Verdana, sans-serif";
         document.getElementById("fontSize").value = data.fontSize || "13px";
         document.getElementById("fontColor").value = data.fontColor || "#000000";
     });
@@ -28,7 +28,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
-            alert("Configuración guardada y aplicada!");
+
+            // 📌 Cerrar el popup automáticamente después de guardar la configuración
+            window.close();
+
+            // 🔄 Enviar mensaje al background.js para recargar Gmail
+            chrome.runtime.sendMessage({ action: "reloadGmail" });
+
         });
     });
 });
@@ -42,7 +48,6 @@ function applySavedSettingsFromStorage() {
             emailBody.style.fontSize = data.fontSize || "13px";
             emailBody.style.color = data.fontColor || "#000000";
             console.log("🎨 Estilos aplicados desde popup:", data);
-            location.reload();
         } else {
             console.log("❌ No se encontró el área de redacción.");
         }
