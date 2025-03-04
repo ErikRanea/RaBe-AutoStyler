@@ -80,10 +80,6 @@ function addCustomButton(sendButton) {
             emailBody.innerHTML = content;
             console.log("🎨 Formato aplicado directamente en el contenido del correo.");
 
-            setTimeout(() => {
-                resaltarPalabras();
-            }, 100);
-
             // Reiniciar la observación del editor para detectar cambios manuales
             startEditorObserver();
         } else {
@@ -92,23 +88,3 @@ function addCustomButton(sendButton) {
     });
 }
 
-function resaltarPalabras() {
-    console.log("🔍 Cargando resaltar palabras...");
-    const phrases = ["ven a malta", "spanish party"];
-
-    let emailBody = getEmailBody();
-    if (emailBody) {
-        console.log("✅ Body del correo encontrado");
-
-        let content = emailBody.innerHTML;
-
-        phrases.forEach(phrase => {
-            const regex = new RegExp(`(${phrase})`, "gi");
-            content = content.replace(regex, "<strong>$1</strong>");
-        });
-
-        emailBody.innerHTML = content; // Actualizar el contenido con las frases resaltadas
-    } else {
-        console.log("❌ Body del correo no encontrado.");
-    }
-}
