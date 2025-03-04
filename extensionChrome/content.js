@@ -86,4 +86,3 @@ function applySavedSettings() {
         console.log("❌ No se encontró el área de redacción.");
     }
 }
-
