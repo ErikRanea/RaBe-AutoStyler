@@ -1,20 +1,27 @@
 console.log("📌 La extensión se ha cargado correctamente.");
 
-// Esperamos cambios en el cuerpo del documento
+// Función para obtener el cuerpo del correo
+function getEmailBody() {
+    return document.querySelector("[role='textbox']");
+}
+
+// Observador para detectar el botón "Enviar" y agregar el botón "Estilizar"
 const observer = new MutationObserver(() => {
     console.log("🔍 Observando cambios en el DOM...");
 
-    // Buscar botón de enviar
     const sendButton = document.querySelector(".aoO");
-
     if (sendButton && !document.getElementById("formatButton")) {
         console.log("✅ Botón 'Enviar' encontrado.");
         addCustomButton(sendButton);
     }
+
+    // Aplicar configuración guardada automáticamente
+    //applySavedSettings();
 });
 
-// Iniciamos el observador
+// Iniciar el observador
 observer.observe(document.body, { childList: true, subtree: true });
+
 
 function addCustomButton(sendButton) {
     console.log("🛠️ Creando botón personalizado...");
@@ -23,7 +30,7 @@ function addCustomButton(sendButton) {
     formatButton.innerText = "Estilizar";
     formatButton.id = "formatButton";
     formatButton.style.cssText = `
-        background-color:rgb(255, 255, 255);
+        background-color: rgb(255, 255, 255);
         color: black;
         border: none;
         padding: 0 16px;
@@ -35,52 +42,48 @@ function addCustomButton(sendButton) {
         letter-spacing: 0.25px;
         font-family: 'Google Sans';
         border: 1px solid black;
+        transition: background-color 0.3s ease;
     `;
-
 
     sendButton.parentNode.appendChild(formatButton);
     console.log("📌 Botón agregado junto al botón 'Enviar'.");
 
     formatButton.addEventListener("click", () => {
         console.log("🖊️ Botón 'Estilizar' presionado.");
-
-        let emailBody = document.querySelector(".Am.Al.editable");
-        if (emailBody) {
-            console.log("✅ Área de redacción encontrada. Aplicando formato...");
-            emailBody.style.fontFamily = "Verdana, sans-serif";
-            emailBody.style.fontSize = "13px";
-            emailBody.style.color = "black";
-            console.log("🎨 Formato aplicado: Verdana, negro, tamaño 14px.");
-            setTimeout(() => {
-                resaltarPalabras();
-            }, 100);
-        } else {
-            console.log("❌ No se encontró el área de redacción.");
-        }
+        applySavedSettings();
     });
 }
 
-function resaltarPalabras() {
-    // Definir las frases a buscar
-    console.log("Cargando resaltar palabras");
-    const phrases = ["ven a malta", "spanish party"];
-
-    // Seleccionar el cuerpo del correo (ajustar el selector según la plataforma)
-    const emailBody = document.querySelector(".Am.Al.editable");
+function applySavedSettings() {
+    let emailBody = getEmailBody();
 
     if (emailBody) {
-        console.log("Body del correo encontrado");
-        let content = emailBody.innerHTML; // Obtener el contenido en HTML
+        console.log("✅ Área de redacción encontrada. Aplicando formato en el HTML...");
 
-        // Reemplazar cada frase con su versión en negrita
-        phrases.forEach(phrase => {
-            const regex = new RegExp(`(${phrase})`, "gi"); // 'gi' = insensible a mayúsculas
-            content = content.replace(regex, "<strong>$1</strong>");
+        // Pedir los valores guardados al background.js
+        chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.log("⚠️ Error en la respuesta del background:", chrome.runtime.lastError.message);
+                return;
+            }
+
+            if (response) {
+                const { fontFamily, fontSize, fontColor } = response;
+
+                console.log("🎨 Aplicando formato con datos obtenidos:", response);
+
+                // Aplicamos los estilos dinámicamente usando los valores almacenados
+                let content = emailBody.innerHTML;
+                content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
+                emailBody.innerHTML = content;
+
+                console.log("✨ Formato aplicado directamente en el contenido del correo.");
+            } else {
+                console.log("⚠️ No se recibieron datos desde el background.");
+            }
         });
-
-        emailBody.innerHTML = content; // Actualizar el contenido con las frases resaltadas
-    }
-    else{
-        console.log("Body del correo no encontrado");
+    } else {
+        console.log("❌ No se encontró el área de redacción.");
     }
 }
+
