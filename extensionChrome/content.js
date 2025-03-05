@@ -53,12 +53,31 @@ function addCustomButton(sendButton) {
         applySavedSettings();
     });
 }
-
 function applySavedSettings() {
     let emailBody = getEmailBody();
 
     if (emailBody) {
         console.log("✅ Área de redacción encontrada. Aplicando formato en el HTML...");
+
+        // Buscar el último div[dir="ltr"] anidado
+        let innerDiv = emailBody.querySelector('div[dir="ltr"]');
+
+        while (innerDiv && innerDiv.querySelector('div[dir="ltr"]')) {
+            innerDiv = innerDiv.querySelector('div[dir="ltr"]'); // Avanzamos al div más profundo
+        }
+
+        // ✅ Nueva validación: Si no existe un div dir="ltr", usar emailBody directamente
+        if (!innerDiv) {
+            console.log("⚠️ No se encontró un div con dir='ltr', aplicando formato directamente al emailBody.");
+            innerDiv = emailBody; 
+        }
+
+        // ✅ Nueva validación: Verificar si innerDiv no es null antes de acceder a querySelector
+        let gmailDefaultDiv = innerDiv ? innerDiv.querySelector('div.gmail_default') : null;
+        if (gmailDefaultDiv) {
+            console.log("📩 Se encontró un <div class='gmail_default'>, aplicando estilo dentro de él.");
+            innerDiv = gmailDefaultDiv;
+        }
 
         // Pedir los valores guardados al background.js
         chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
@@ -71,22 +90,20 @@ function applySavedSettings() {
                 const { fontFamily, fontSize, fontColor } = response;
                 console.log("🎨 Aplicando formato con datos obtenidos:", response);
 
-                let content = emailBody.innerHTML;
+                let content = innerDiv.innerHTML;
 
                 // Expresión regular para detectar si ya existe un <span> envolviendo el contenido
                 const spanRegex = /^<span[^>]*>(.*?)<\/span>$/is;
 
                 if (spanRegex.test(content)) {
                     console.log("🔄 Se detectó un <span> existente, actualizando estilos...");
-                    // Si ya existe un <span>, actualizamos sus atributos sin envolver otro <span>
-                    emailBody.firstElementChild.style.fontFamily = fontFamily;
-                    emailBody.firstElementChild.style.fontSize = fontSize;
-                    emailBody.firstElementChild.style.color = fontColor;
+                    innerDiv.firstElementChild.style.fontFamily = fontFamily;
+                    innerDiv.firstElementChild.style.fontSize = fontSize;
+                    innerDiv.firstElementChild.style.color = fontColor;
                 } else {
                     console.log("🆕 No se detectó un <span>, agregando uno nuevo...");
-                    // Si no hay un <span>, lo agregamos
                     content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
-                    emailBody.innerHTML = content;
+                    innerDiv.innerHTML = content;
                 }
 
                 console.log("✨ Formato aplicado correctamente.");
@@ -98,3 +115,7 @@ function applySavedSettings() {
         console.log("❌ No se encontró el área de redacción.");
     }
 }
+
+
+
+
