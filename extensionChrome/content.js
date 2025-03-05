@@ -14,14 +14,10 @@ const observer = new MutationObserver(() => {
         console.log("✅ Botón 'Enviar' encontrado.");
         addCustomButton(sendButton);
     }
-
-    // Aplicar configuración guardada automáticamente
-    //applySavedSettings();
 });
 
 // Iniciar el observador
 observer.observe(document.body, { childList: true, subtree: true });
-
 
 function addCustomButton(sendButton) {
     console.log("🛠️ Creando botón personalizado...");
@@ -53,69 +49,66 @@ function addCustomButton(sendButton) {
         applySavedSettings();
     });
 }
+
 function applySavedSettings() {
     let emailBody = getEmailBody();
 
-    if (emailBody) {
-        console.log("✅ Área de redacción encontrada. Aplicando formato en el HTML...");
+    if (!emailBody) {
+        console.log("❌ No se encontró el área de redacción.");
+        return;
+    }
 
-        // Buscar el último div[dir="ltr"] anidado
-        let innerDiv = emailBody.querySelector('div[dir="ltr"]');
+    console.log("✅ Área de redacción encontrada. Aplicando formato en el HTML...");
 
-        while (innerDiv && innerDiv.querySelector('div[dir="ltr"]')) {
-            innerDiv = innerDiv.querySelector('div[dir="ltr"]'); // Avanzamos al div más profundo
+    // Buscar el último div[dir="ltr"] anidado
+    let innerDiv = emailBody.querySelector('div[dir="ltr"]');
+
+    while (innerDiv && innerDiv.querySelector('div[dir="ltr"]')) {
+        innerDiv = innerDiv.querySelector('div[dir="ltr"]'); // Avanzamos al div más profundo
+    }
+
+    // 📩 Buscar TODOS los div.gmail_default dentro de innerDiv
+    let gmailDefaults = innerDiv ? innerDiv.querySelectorAll('div.gmail_default') : [];
+
+    if (gmailDefaults.length === 0) {
+        console.log("⚠️ No se encontraron div.gmail_default, aplicando formato directamente en emailBody.");
+        gmailDefaults = [emailBody]; // Usamos el emailBody como fallback
+    }
+
+    // Pedir los valores guardados al background.js
+    chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.log("⚠️ Error en la respuesta del background:", chrome.runtime.lastError.message);
+            return;
         }
 
-        // ✅ Nueva validación: Si no existe un div dir="ltr", usar emailBody directamente
-        if (!innerDiv) {
-            console.log("⚠️ No se encontró un div con dir='ltr', aplicando formato directamente al emailBody.");
-            innerDiv = emailBody; 
+        if (!response) {
+            console.log("⚠️ No se recibieron datos desde el background.");
+            return;
         }
 
-        // ✅ Nueva validación: Verificar si innerDiv no es null antes de acceder a querySelector
-        let gmailDefaultDiv = innerDiv ? innerDiv.querySelector('div.gmail_default') : null;
-        if (gmailDefaultDiv) {
-            console.log("📩 Se encontró un <div class='gmail_default'>, aplicando estilo dentro de él.");
-            innerDiv = gmailDefaultDiv;
-        }
+        const { fontFamily, fontSize, fontColor } = response;
+        console.log(`🎨 Aplicando formato en ${gmailDefaults.length} elementos encontrados.`);
 
-        // Pedir los valores guardados al background.js
-        chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.log("⚠️ Error en la respuesta del background:", chrome.runtime.lastError.message);
-                return;
-            }
+        // Aplicar estilos en cada div.gmail_default
+        gmailDefaults.forEach((div) => {
+            let content = div.innerHTML;
 
-            if (response) {
-                const { fontFamily, fontSize, fontColor } = response;
-                console.log("🎨 Aplicando formato con datos obtenidos:", response);
+            // Expresión regular para detectar si ya existe un <span> envolviendo el contenido
+            const spanRegex = /^<span[^>]*>(.*?)<\/span>$/is;
 
-                let content = innerDiv.innerHTML;
-
-                // Expresión regular para detectar si ya existe un <span> envolviendo el contenido
-                const spanRegex = /^<span[^>]*>(.*?)<\/span>$/is;
-
-                if (spanRegex.test(content)) {
-                    console.log("🔄 Se detectó un <span> existente, actualizando estilos...");
-                    innerDiv.firstElementChild.style.fontFamily = fontFamily;
-                    innerDiv.firstElementChild.style.fontSize = fontSize;
-                    innerDiv.firstElementChild.style.color = fontColor;
-                } else {
-                    console.log("🆕 No se detectó un <span>, agregando uno nuevo...");
-                    content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
-                    innerDiv.innerHTML = content;
-                }
-
-                console.log("✨ Formato aplicado correctamente.");
+            if (spanRegex.test(content)) {
+                console.log("🔄 Se detectó un <span> existente, actualizando estilos...");
+                div.firstElementChild.style.fontFamily = fontFamily;
+                div.firstElementChild.style.fontSize = fontSize;
+                div.firstElementChild.style.color = fontColor;
             } else {
-                console.log("⚠️ No se recibieron datos desde el background.");
+                console.log("🆕 No se detectó un <span>, agregando uno nuevo...");
+                content = `<span style="font-family: ${fontFamily}; font-size: ${fontSize}; color: ${fontColor};">${content}</span>`;
+                div.innerHTML = content;
             }
         });
-    } else {
-        console.log("❌ No se encontró el área de redacción.");
-    }
+
+        console.log("✨ Formato aplicado correctamente.");
+    });
 }
-
-
-
-
