@@ -1,4 +1,4 @@
-// Listener para recibir solicitudes desde content.js
+// Listener para recibir solicitudes desde content.js o popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "getStoredStyles") {
         console.log("📩 Recibida solicitud de estilos desde content.js...");
@@ -19,12 +19,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log("🔄 Recargando Gmail...");
         chrome.tabs.query({ url: "https://mail.google.com/*" }, (tabs) => {
             if (tabs.length > 0) {
-                chrome.tabs.reload(tabs[0].id);
-                console.log("✅ Gmail recargado con éxito.");
+                chrome.tabs.reload(tabs[0].id, () => {
+                    console.log("✅ Gmail recargado con éxito.");
+                    sendResponse({ status: "success" }); // Confirmación al popup.js
+                });
             } else {
                 console.log("❌ No se encontró una pestaña de Gmail abierta.");
+                sendResponse({ status: "failed" }); // Confirmación de error
             }
         });
+        return true; // Mantiene el canal abierto para enviar respuesta asíncrona
     }
 });
 

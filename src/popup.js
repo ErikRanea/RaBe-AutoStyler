@@ -28,12 +28,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
-
-            // 📌 Cerrar el popup automáticamente después de guardar la configuración
-            window.close();
-
-            // 🔄 Enviar mensaje al background.js para recargar Gmail
-            chrome.runtime.sendMessage({ action: "reloadGmail" });
+            console.log("📩 Enviando mensaje para recargar Gmail...");
+            chrome.runtime.sendMessage({ action: "reloadGmail" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.log("⚠️ Error enviando mensaje a background:", chrome.runtime.lastError.message);
+                } else if (response && response.status === "success") {
+                    console.log("✅ Confirmación recibida: Gmail será recargado.");
+                // 📌 Cerrar el popup automáticamente después de guardar la configuración
+                window.close();
+                } else {
+                    console.log("❌ No se recibió confirmación de recarga.");
+                }
+            });
 
         });
     });
