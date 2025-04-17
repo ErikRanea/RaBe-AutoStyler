@@ -21,48 +21,86 @@ const observer = new MutationObserver(() => {
 
         emailBody.addEventListener("paste", (event) => {
             event.preventDefault();
-        
+
+            const items = event.clipboardData.items;
             const textoPlano = event.clipboardData.getData("text/plain");
-        
+            const imagenes = [];
+
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.type.startsWith("image/")) {
+                    imagenes.push(item.getAsFile());
+                }
+            }
+
             chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
                 if (!response) return;
-        
                 const { fontFamily, fontSize, fontColor } = response;
-        
-                // Limpiar todo el contenido del emailBody
-                emailBody.innerHTML = "";
-        
-                // Crear nuevo contenido limpio con saltos de línea y estilos
-                const lineas = textoPlano.split("\n");
-                const fragment = document.createDocumentFragment();
-        
-                lineas.forEach((linea, index) => {
-                    const span = document.createElement("span");
-                    span.textContent = linea;
-                    span.style.fontFamily = fontFamily;
-                    span.style.fontSize = fontSize;
-                    span.style.color = fontColor;
-                    fragment.appendChild(span);
-        
-                    if (index < lineas.length - 1) {
-                        fragment.appendChild(document.createElement("br"));
-                    }
-                });
-        
-                emailBody.appendChild(fragment);
-        
-                // Mover el cursor al final
+
+               // 1. Verificar si el contenido ya pegado por Gmail coincide con el texto plano
+                const contenidoActual = emailBody.innerText.trim();
+                const textoPegado = textoPlano.trim();
+
+                if (contenidoActual === textoPegado) {
+                    console.log("🧹 Contenido pegado por Gmail detectado, será reemplazado.");
+                    emailBody.innerHTML = "";
+                } else {
+                    console.log("🛑 El contenido no coincide con el texto pegado. No se borra.");
+                }
+
+
+                // 2. Insertar texto con estilo
+                if (textoPlano) {
+                    const lineas = textoPlano.split("\n");
+                    const textoFragment = document.createDocumentFragment();
+
+                    lineas.forEach((linea, index) => {
+                        const span = document.createElement("span");
+                        span.textContent = linea;
+                        span.style.fontFamily = fontFamily;
+                        span.style.fontSize = fontSize;
+                        span.style.color = fontColor;
+                        textoFragment.appendChild(span);
+
+                        if (index < lineas.length - 1) {
+                            textoFragment.appendChild(document.createElement("br"));
+                        }
+                    });
+
+                    emailBody.appendChild(textoFragment);
+                }
+
+                // 3. Insertar imágenes (visual + adjunto real)
+                if (imagenes.length > 0) {
+                    imagenes.forEach((archivo) => {
+                        const blobURL = URL.createObjectURL(archivo);
+
+                        const img = document.createElement("img");
+                        img.src = blobURL;
+                        img.alt = archivo.name || "image";
+                        img.setAttribute("data-surl", `cid:${crypto.randomUUID()}`);
+                        img.style.maxWidth = "100%";
+                        img.style.margin = "10px 0";
+
+                        emailBody.appendChild(document.createElement("br"));
+                        emailBody.appendChild(img);
+                        emailBody.appendChild(document.createElement("br"));
+
+                        simularAdjuntoEnGmail(archivo);
+                    });
+                }
+
+                // 4. Colocar el cursor al final
                 const range = document.createRange();
                 const sel = window.getSelection();
                 range.selectNodeContents(emailBody);
                 range.collapse(false);
                 sel.removeAllRanges();
                 sel.addRange(range);
-        
-                console.log("🧹 Pegado limpio realizado: todo el contenido anterior ha sido eliminado.");
+
+                console.log("📎 Texto + imagen insertados y adjuntados correctamente.");
             });
         });
-        
 
         emailBody.dataset.pasteListenerAttached = "true";
     }
@@ -112,13 +150,11 @@ function applySavedSettings() {
 
     console.log("✅ Área de redacción encontrada. Aplicando formato en el HTML...");
 
-    // Buscar el último div[dir="ltr"] anidado
     let innerDiv = emailBody.querySelector('div[dir="ltr"]');
     while (innerDiv && innerDiv.querySelector('div[dir="ltr"]')) {
         innerDiv = innerDiv.querySelector('div[dir="ltr"]');
     }
 
-    // Buscar TODOS los div.gmail_default dentro de innerDiv
     let gmailDefaults = innerDiv ? innerDiv.querySelectorAll('div.gmail_default') : [];
     let divVacio = innerDiv ? innerDiv.querySelector('div') : [];
 
@@ -159,4 +195,24 @@ function applySavedSettings() {
 
         console.log("✨ Formato aplicado correctamente.");
     });
+}
+
+// 🛠️ Simula la inserción del archivo en el input oculto de Gmail para que se envíe como adjunto real
+function simularAdjuntoEnGmail(file) {
+    const inputAdjunto = document.querySelector('input[type="file"][name="Filedata"]');
+
+    if (!inputAdjunto) {
+        console.warn("❌ No se encontró input de adjunto de Gmail.");
+        return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    inputAdjunto.files = dataTransfer.files;
+
+    const event = new Event("change", { bubbles: true });
+    inputAdjunto.dispatchEvent(event);
+
+    console.log("📎 Imagen enviada como adjunto correctamente.");
 }
