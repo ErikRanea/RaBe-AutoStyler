@@ -5,7 +5,7 @@ function getEmailBody() {
     return document.querySelector("[role='textbox']");
 }
 
-// Observador para detectar el botón "Enviar" y agregar el botón "Estilizar"
+// Observador para detectar el botón "Enviar", el editor y agregar el botón "Estilizar"
 const observer = new MutationObserver(() => {
     console.log("🔍 Observando cambios en el DOM...");
 
@@ -13,6 +13,58 @@ const observer = new MutationObserver(() => {
     if (sendButton && !document.getElementById("formatButton")) {
         console.log("✅ Botón 'Enviar' encontrado.");
         addCustomButton(sendButton);
+    }
+
+    const emailBody = getEmailBody();
+    if (emailBody && !emailBody.dataset.pasteListenerAttached) {
+        console.log("🧲 Interceptando pegado en el editor...");
+
+        emailBody.addEventListener("paste", (event) => {
+            event.preventDefault();
+        
+            const textoPlano = event.clipboardData.getData("text/plain");
+        
+            chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
+                if (!response) return;
+        
+                const { fontFamily, fontSize, fontColor } = response;
+        
+                // Limpiar todo el contenido del emailBody
+                emailBody.innerHTML = "";
+        
+                // Crear nuevo contenido limpio con saltos de línea y estilos
+                const lineas = textoPlano.split("\n");
+                const fragment = document.createDocumentFragment();
+        
+                lineas.forEach((linea, index) => {
+                    const span = document.createElement("span");
+                    span.textContent = linea;
+                    span.style.fontFamily = fontFamily;
+                    span.style.fontSize = fontSize;
+                    span.style.color = fontColor;
+                    fragment.appendChild(span);
+        
+                    if (index < lineas.length - 1) {
+                        fragment.appendChild(document.createElement("br"));
+                    }
+                });
+        
+                emailBody.appendChild(fragment);
+        
+                // Mover el cursor al final
+                const range = document.createRange();
+                const sel = window.getSelection();
+                range.selectNodeContents(emailBody);
+                range.collapse(false);
+                sel.removeAllRanges();
+                sel.addRange(range);
+        
+                console.log("🧹 Pegado limpio realizado: todo el contenido anterior ha sido eliminado.");
+            });
+        });
+        
+
+        emailBody.dataset.pasteListenerAttached = "true";
     }
 });
 
@@ -62,20 +114,19 @@ function applySavedSettings() {
 
     // Buscar el último div[dir="ltr"] anidado
     let innerDiv = emailBody.querySelector('div[dir="ltr"]');
-
     while (innerDiv && innerDiv.querySelector('div[dir="ltr"]')) {
-        innerDiv = innerDiv.querySelector('div[dir="ltr"]'); // Avanzamos al div más profundo
+        innerDiv = innerDiv.querySelector('div[dir="ltr"]');
     }
 
-    // 📩 Buscar TODOS los div.gmail_default dentro de innerDiv
+    // Buscar TODOS los div.gmail_default dentro de innerDiv
     let gmailDefaults = innerDiv ? innerDiv.querySelectorAll('div.gmail_default') : [];
+    let divVacio = innerDiv ? innerDiv.querySelector('div') : [];
 
     if (gmailDefaults.length === 0) {
         console.log("⚠️ No se encontraron div.gmail_default, aplicando formato directamente en emailBody.");
-        gmailDefaults = [emailBody]; // Usamos el emailBody como fallback
+        gmailDefaults = [emailBody];
     }
 
-    // Pedir los valores guardados al background.js
     chrome.runtime.sendMessage({ action: "getStoredStyles" }, (response) => {
         if (chrome.runtime.lastError) {
             console.log("⚠️ Error en la respuesta del background:", chrome.runtime.lastError.message);
@@ -90,11 +141,8 @@ function applySavedSettings() {
         const { fontFamily, fontSize, fontColor } = response;
         console.log(`🎨 Aplicando formato en ${gmailDefaults.length} elementos encontrados.`);
 
-        // Aplicar estilos en cada div.gmail_default
         gmailDefaults.forEach((div) => {
             let content = div.innerHTML;
-
-            // Expresión regular para detectar si ya existe un <span> envolviendo el contenido
             const spanRegex = /^<span[^>]*>(.*?)<\/span>$/is;
 
             if (spanRegex.test(content)) {
