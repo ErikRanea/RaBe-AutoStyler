@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RaBe - AutoStyler",
   "description": "Personaliza el formato de correos en Gmail aplicando automáticamente tipografía, tamaño y color en la redacción.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "permissions": [
     "activeTab",
     "scripting",
